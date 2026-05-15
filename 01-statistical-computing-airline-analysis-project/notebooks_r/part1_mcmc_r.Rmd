@@ -1,0 +1,100 @@
+```{r}
+f <- function(x) {
+  return(0.5 * exp(-abs(x)))
+}
+```
+
+```{r}
+random_walk_metropolis <- function(n, s, xarr) {
+  for (i in 2:(n + 1)) {
+    x_star <- rnorm(1, xarr[i - 1], s)
+    log_r <- log(f(x_star)) - log(f(xarr[i - 1]))
+
+    u <- runif(1, 0, 1)
+    if (log(u) < log_r) {
+      xarr[i] <- x_star
+    } else {
+      xarr[i] <- xarr[i - 1]
+    }
+  }
+  return(xarr)
+}
+```
+
+```{r}
+n <- 10000
+s <- 5
+xarr <- c(2)
+xarr <- random_walk_metropolis(n, s, xarr)
+```
+
+```{r}
+hist(xarr, breaks = 100, freq = FALSE, col = "blue", main = "Random Walk Metropolis", xlab = "x", ylab = "Density")
+curve(f, from = -10, to = 10, add = TRUE, col = "red")
+```
+
+```{r}
+paste("Sample mean: ", mean(xarr))
+paste("Sample standard deviation: ", sd(xarr))
+```
+
+```{r}
+j <- 4
+n <- 2000
+s <- 1
+
+xarr <- list(
+  J1 = c(2),
+  J2 = c(8),
+  J3 = c(5),
+  J4 = c(1)
+)
+```
+
+```{r}
+for (i in 1:j) {
+  xarr[[i]] <- random_walk_metropolis(n, s, xarr[[i]])
+}
+```
+
+```{r}
+calculate_r_hat <- function(xarr) {
+  m <- list()
+  for (i in 1:j) {
+    m[i] <- mean(xarr[[i]])
+  }
+  v <- list()
+  for (i in 1:j) {
+    v[i] <- var(xarr[[i]])
+  }
+  w <- 1 / j * sum(as.numeric(unlist(v)))
+  mbar <- mean(as.numeric(unlist(m)))
+
+  b <- 1 / j * sum((as.numeric(unlist(m)) - mbar)^2)
+  rhat <- sqrt((b + w) / w)
+
+  return(rhat)
+}
+
+calculate_r_hat(xarr)
+```
+
+```{r}
+svals <- seq(0.01, 1, 0.01)
+rhatvals <- c()
+
+for (s in svals) {
+  xarr <- list(
+    J1 = c(2),
+    J2 = c(8),
+    J3 = c(5),
+    J4 = c(1)
+  )
+  for (i in 1:j) {
+    xarr[[i]] <- random_walk_metropolis(n, s, xarr[[i]])
+  }
+  rhatvals <- c(rhatvals, calculate_r_hat(xarr))
+}
+
+plot(svals, rhatvals, type = "l", col = "blue", xlab = "s", ylab = "Rhat", main = "Rhat vs s")
+```

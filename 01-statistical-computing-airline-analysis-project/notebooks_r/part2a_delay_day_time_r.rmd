@@ -1,0 +1,74 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+process_year <- function(year) {
+  df <- read_csv(paste0("./Plane Data/", year, ".csv")) %>%
+    filter(DepDelay > 0 & ArrDelay > 0) %>%
+    mutate(TotalDelay = DepDelay + ArrDelay) %>%
+    select(Year, DayOfWeek, CRSDepTime, ArrDelay, DepDelay, TotalDelay)
+  return(df)
+}
+
+year_datas <- map(1997:2006, process_year)
+head(year_datas[1])
+```
+
+```{r}
+plot_year_week <- function(df){
+  means = df %>%
+    group_by(DayOfWeek) %>%
+    summarise(TotalDelay=mean(TotalDelay))
+  
+  print(means)
+  
+  best_day <- means$DayOfWeek[which.min(means$TotalDelay)]
+  print(paste("Best day of the week to travel: ", best_day))
+
+  p <- ggplot(means, aes(DayOfWeek, TotalDelay)) +
+  geom_bar(
+    stat = "identity", 
+    fill=factor(ifelse(means$DayOfWeek == best_day,"red","blue"))
+  ) + 
+  labs(
+    title = df$Year[1], 
+    x = "", 
+    y = "Total Delay (Arrival Delay + Departure Delay) (minutes)") +
+    theme(plot.title = element_text(hjust = 0.5)
+  )
+  print(p)
+}
+
+
+purrr::walk(year_datas, ~plot_year_week(.x))
+```
+
+```{r}
+plot_year_hour <- function(df) {
+  df$depTimeHour = floor(df$CRSDepTime / 100)
+  means = df %>%
+    group_by(depTimeHour) %>%
+    summarise(TotalDelay=mean(TotalDelay))
+
+  print(means)
+
+  best_hour <- means$depTimeHour[which.min(means$TotalDelay)]
+  print(paste("Best hour of the day to travel: ", best_hour))
+
+  p <- ggplot(means, aes(depTimeHour, TotalDelay)) +
+    geom_bar(
+      stat = "identity", 
+      fill=factor(ifelse(means$depTimeHour == best_hour,"red","blue"))
+    ) + 
+    labs(
+      title = df$Year[1], 
+      x = "Departure Time (Hour)", 
+      y = "Total Delay (Arrival Delay + Departure Delay) (minutes)"
+    ) +
+    theme(plot.title = element_text(hjust = 0.5))
+  print(p)
+}
+
+purrr::walk(year_datas, ~plot_year_hour(.x))
+```

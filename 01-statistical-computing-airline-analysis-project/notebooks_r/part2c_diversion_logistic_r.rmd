@@ -1,0 +1,70 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+balanced_year_datas <- lapply(1997:2006, function(year){
+  yearly_data <- read_csv(paste0("./Plane Data/", year, ".csv"))
+
+  diverted_year_data <- filter(yearly_data, Diverted == 1)
+  non_diverted_year_data <- sample_n(filter(yearly_data, Diverted == 0), nrow(diverted_year_data))
+  
+  return(bind_rows(diverted_year_data, non_diverted_year_data))
+})
+
+airport_data <- read_csv('./Plane Data/airports.csv', col_types = cols())
+```
+
+```{r}
+complete_datas <- list()
+
+for (i in seq_along(balanced_year_datas)) {
+  complete_data <- balanced_year_datas[[i]] %>%
+    left_join(airport_data, by = c('Origin' = 'iata'), suffix = c("", "_origin")) %>%
+    left_join(airport_data, by = c('Dest' = 'iata'), suffix = c("_origin", "_dest"))
+  
+  complete_datas[[i]] <- complete_data
+}
+
+print(complete_datas[[1]])
+```
+
+```{r}
+for (i in seq_along(complete_datas)) {
+  complete_data <- select(complete_datas[[i]], Month, DayofMonth, CRSDepTime, CRSArrTime, Distance, Diverted, lat_origin, long_origin, lat_dest, long_dest)
+  complete_datas[[i]] <- complete_data
+}
+
+for (i in seq_along(complete_datas)) {
+  print(paste("Year", i + 1997, ":", sum(colSums(is.na(complete_datas[[i]])))))
+}
+
+print(complete_datas[[1]])
+```
+
+```{r}
+
+for (i in seq_along(complete_datas)) {
+  data = complete_datas[[i]]
+  
+  X = select(data, -Diverted)
+  y = data$Diverted   
+
+  X = as.data.frame(scale(X))
+    
+  model = glm(y ~ ., family=binomial, data=X)
+  
+  coef_summary <- summary(model)$coefficients[, "Estimate"]
+
+  temp = data.frame("Year"= i + 1996, "Variable" = names(coef_summary), "Value" = coef_summary)
+  
+  plot <- ggplot(data = temp, aes(x=Variable, y=Value)) +
+    geom_bar(stat="identity", fill=factor(ifelse(temp$Value == max(temp$Value), "red", "blue"))) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = paste("Year", i + 1996, "Coefficients")) 
+  
+  print(plot)
+}
+
+
+```

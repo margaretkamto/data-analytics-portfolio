@@ -1,0 +1,57 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+process_year <- function(year) {
+  df <- read_csv(paste0("./Plane Data/", year, ".csv")) %>%
+    filter(DepDelay > 0 & ArrDelay > 0) %>%
+    mutate(TotalDelay = DepDelay + ArrDelay) %>%
+    select(Year, TailNum, TotalDelay)
+  return(df)
+}
+
+year_datas <- map(1997:2006, process_year)
+
+plane_data <- read_csv("./Plane Data/plane-data.csv") %>%
+  select(tailnum, issue_date, year)
+
+head(year_datas[1])
+```
+
+```{r}
+plane_data <- plane_data %>% 
+  rename("TailNum" = "tailnum")
+
+plane_data <- plane_data %>%
+  mutate(issue_date = as.Date(issue_date, format = "%m/%d/%Y")) %>%
+  mutate(issue_year = year(issue_date))
+
+plane_data <- plane_data %>% 
+  mutate(plane_year = ifelse(!is.na(year), as.numeric(year), issue_year))
+  
+plane_data <- plane_data %>% 
+  mutate(plane_year = ifelse(plane_year == 0, issue_year, plane_year))
+
+head(plane_data)
+```
+
+```{r}
+year_datas <- lapply(year_datas, function(year_data) {
+  year_data <- left_join(year_data, plane_data, by = "TailNum")
+  year_data <- na.omit(year_data, cols = c("plane_year"))
+  year_data <- mutate(year_data, plane_year = as.integer(plane_year), Year = as.integer(Year))
+  year_data <- mutate(year_data, plane_age = Year - plane_year)
+  year_data <- filter(year_data, plane_age >= 0)
+    
+  return(year_data)
+})
+```
+
+```{r}
+mean_delay <- lapply(year_datas, function(year_data){
+  age_group = year_data %>% group_by(plane_age) %>% summarise(TotalDelay = mean(TotalDelay))
+  plot <- ggplot(age_group, aes(x = plane_age, y = TotalDelay)) + geom_point() + geom_line() + labs(title = year_data$Year[1], x="Plane Age", y="Average Total Delay")
+  print(plot)  
+})
+```
